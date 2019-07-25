@@ -171,9 +171,8 @@ void bundleAdjustment (
 }
 
 int main( int argc, char** argv )	{
-  DPUKernel *kernel;
-  DPUTask *task;
-  device_setup(kernel, task);
+  SuperPointTask SPtask;
+  device_setup(SPtask);
   
   long t1,t2;
 
@@ -227,7 +226,7 @@ int main( int argc, char** argv )	{
   else if(DETECTOR=="sift")
     run_sift(img_1, points1, desc1);
   else
-    run_superpoint(task, img_1, points1, desc1);
+    run_superpoint(SPtask, img_1, points1, desc1);
 
   Mat currImage;
   vector<Point2f> prevFeatures = points1;
@@ -278,7 +277,7 @@ int main( int argc, char** argv )	{
     else if(DETECTOR=="sift")
         featureTracking_sift(prevFeatures, prevDesc, currImage, dpic, K, points_3d, points_2d);
     else
-        featureTracking_superpoint(task, prevFeatures, prevDesc, currImage, dpic, K, points_3d, points_2d);
+        featureTracking_superpoint(SPtask, prevFeatures, prevDesc, currImage, dpic, K, points_3d, points_2d);
     if(points_3d.size() < 40)
     {
         char outname[100];
@@ -344,7 +343,7 @@ int main( int argc, char** argv )	{
   
   myfile.close();
   
-  device_close(kernel, task);
+  device_close(SPtask);
 
   return 0;
 }

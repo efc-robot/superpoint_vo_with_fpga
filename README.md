@@ -1,4 +1,4 @@
-# superpoint_VO
+# superpoint_vo_with_fpga
 
 ## 准备工作
 
@@ -79,4 +79,4 @@ cmake .. && make
 * 特征点数量
 ```c++
 #define KEEP_K_POINTS 200
-```# superpoint_vo_with_fpga
+```

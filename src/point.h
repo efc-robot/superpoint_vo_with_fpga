@@ -7,7 +7,7 @@ class point
         int W;   
         int H;  
         int num;
-        uint16_t semi;   
+        float semi;   
         point(int a, int b, float c) {H=a;W=b;semi=c;}
         point() {}
 };
