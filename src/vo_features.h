@@ -66,6 +66,8 @@ THE SOFTWARE.
 #define NN_thresh 360
 #define MATCHER "BF"
 #define CONF_thresh 0.15
+#define SOFTMAX_FPGA true
+#define NORM_FPGA true
 
 #undef readl
 #define readl(addr) \
@@ -206,7 +208,6 @@ void run_Softmax(int8_t* result_semi_int, int num_semi, point coarse_semi[][Widt
         
         if(result_semi_int[i]<-8)
             result_semi[i] = 0;
-        myfile <<dec<< result_semi[i] << endl;
 	}
     
     for(int i=0; i<Height/Cell; i++) {
@@ -308,7 +309,37 @@ void run_NMS(point coarse_semi[][Width/Cell], vector<point> &tmp_point, int thre
     }
 }
 
-void run_Normalize(SuperPointTask SPtask, int8_t* result_desc_int, int num_desc, vector<point> tmp_point, int8_t* &result_norm)
+void run_Normalize(int8_t* result_desc_int, int num_desc, vector<point> tmp_point, Mat& desc)
+{
+    desc.create( int(tmp_point.size()), D, CV_32FC1);
+    
+    float coarse_desc[Height/Cell][Width/Cell][D];
+    
+    for(int i=0; i<Height/Cell; i++) {
+        for(int j=0; j<Width/Cell; j++) {
+            //desc normalize
+            float desc_sum_2 = 0;
+            for(int k=0; k<D; k++) {
+                desc_sum_2 = desc_sum_2 + pow(result_desc_int[k+j*D+i*D*Width/Cell],2);
+            }
+            float desc_sum = sqrt(desc_sum_2);
+            for(int k=0; k<D; k++) {
+                // coarse_desc[i][j][k] = result_desc[k+j*D+i*D*Width/Cell]/desc_sum;
+                coarse_desc[i][j][k] = (float)(int)(result_desc_int[k+j*D+i*D*Width/Cell]/desc_sum*512);
+                coarse_desc[i][j][k] = coarse_desc[i][j][k]>127? 127:coarse_desc[i][j][k];
+                coarse_desc[i][j][k] = coarse_desc[i][j][k]<-128? -128:coarse_desc[i][j][k];
+            }
+        }
+    }
+    
+    for(int i=0; i<tmp_point.size(); i++) {
+        float* pData = desc.ptr<float>(i);   //第i+1行的所有元素  
+        for(int j = 0; j < desc.cols; j++)
+            pData[j] = coarse_desc[tmp_point[i].H/Cell][tmp_point[i].W/Cell][j];
+    }
+}
+
+void run_Normalize_fpga(SuperPointTask SPtask, int8_t* result_desc_int, int num_desc, vector<point> tmp_point, Mat& desc)
 {
     memcpy(SPtask.mapped_ddr1_base, result_desc_int, num_desc);
     cout<<"unnorm data copy"<<endl;
@@ -395,7 +426,17 @@ void run_Normalize(SuperPointTask SPtask, int8_t* result_desc_int, int num_desc,
         return;
     }
     
-    result_norm = (int8_t*)SPtask.mapped_ddr2_base;
+    int8_t* result_norm = (int8_t*)SPtask.mapped_ddr2_base;
+    
+    //output desc
+    desc.create( int(tmp_point.size()), D, CV_32FC1); 
+    
+    for(int i=0;i<tmp_point.size();i++)
+    {
+        float* pData = desc.ptr<float>(i);   //第i+1行的所有元素  
+        for(int j = 0; j < desc.cols; j++)
+            pData[j] = result_norm[j+i*D];
+    }
 }
 
 void run_superpoint(SuperPointTask SPtask, Mat img, vector<Point2f>& points, Mat& desc)
@@ -424,7 +465,10 @@ void run_superpoint(SuperPointTask SPtask, Mat img, vector<Point2f>& points, Mat
  
     point coarse_semi[Height/Cell][Width/Cell];
     
-    run_Softmax_fpga(SPtask, result_semi_int, num_semi, coarse_semi);
+    if(SOFTMAX_FPGA)
+        run_Softmax_fpga(SPtask, result_semi_int, num_semi, coarse_semi);
+    else
+        run_Softmax(result_semi_int, num_semi, coarse_semi);
 
     t2=std::chrono::steady_clock::now();//程序段结束后取得系统运行时间(ms)
     time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -450,6 +494,11 @@ void run_superpoint(SuperPointTask SPtask, Mat img, vector<Point2f>& points, Mat
     }
     cout<<"tmp_point.size:"<<tmp_point.size()<<endl;
     
+    for(int i=0;i<tmp_point.size();i++)
+    {
+        points.push_back(Point2f(tmp_point[i].W, tmp_point[i].H));
+    }
+    
     t2=std::chrono::steady_clock::now();//程序段结束后取得系统运行时间(ms)
     time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
     cout << "       rank time:" << (time_used.count() * 1000) << " ms." << endl;
@@ -457,30 +506,14 @@ void run_superpoint(SuperPointTask SPtask, Mat img, vector<Point2f>& points, Mat
     //-------------------------------normalize----------------------
     t1=std::chrono::steady_clock::now();//程序段开始前取得系统运行时间(ms)
     
-    int8_t* result_norm;
-    
-    run_Normalize(SPtask, result_desc_int, num_desc, tmp_point, result_norm);
+    if(NORM_FPGA)
+        run_Normalize_fpga(SPtask, result_desc_int, num_desc, tmp_point, desc);
+    else
+        run_Normalize(result_desc_int, num_desc, tmp_point, desc);
     
     t2=std::chrono::steady_clock::now();//程序段结束后取得系统运行时间(ms)
     time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
     cout << "       normalize run time:" << (time_used.count() * 1000) << " ms." << endl;
-    
-    //output kp & desc
-    t1=std::chrono::steady_clock::now();//程序段开始前取得系统运行时间(ms)
-    
-    desc.create( int(tmp_point.size()), D, CV_32FC1); 
-    
-    for(int i=0;i<tmp_point.size();i++)
-    {
-        points.push_back(Point2f(tmp_point[i].W, tmp_point[i].H));
-        float* pData = desc.ptr<float>(i);   //第i+1行的所有元素  
-        for(int j = 0; j < desc.cols; j++)
-            pData[j] = result_norm[j+i*D];
-    }
-        
-    t2=std::chrono::steady_clock::now();//程序段结束后取得系统运行时间(ms)
-    time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-    cout << "       output time:" << (time_used.count() * 1000) << " ms." << endl;
     
 }
 

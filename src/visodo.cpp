@@ -174,7 +174,8 @@ int main( int argc, char** argv )	{
   SuperPointTask SPtask;
   device_setup(SPtask);
   
-  long t1,t2;
+  std::chrono::steady_clock::time_point t1,t2;
+  std::chrono::duration<double> time_used;
 
   Mat img_1;
   Mat R_f, t_f; //the final rotation and tranlation vectors containing the 
@@ -244,7 +245,7 @@ int main( int argc, char** argv )	{
   myfile << time_stamp << " " << t_f.at<double>(0) << " " << t_f.at<double>(1) << " " << t_f.at<double>(2) << " ";
   myfile << q_f.x() << " " << q_f.y() << " " << q_f.z() << " " << q_f.w() << endl;
 
-  clock_t begin = clock();
+  std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
   namedWindow( "Road facing camera", WINDOW_AUTOSIZE );// Create a window for display.
   namedWindow( "Trajectory", WINDOW_AUTOSIZE );// Create a window for display.
@@ -252,7 +253,7 @@ int main( int argc, char** argv )	{
   Mat traj = Mat::zeros(600, 600, CV_8UC3);
 
   for(int numFrame=1; numFrame < MAX_FRAME; numFrame++)	{
-  	t1=clock();//程序段开始前取得系统运行时间(ms)
+  	t1=std::chrono::steady_clock::now();//程序段开始前取得系统运行时间(ms)
 
     dpic = imread ( depthname1, CV_LOAD_IMAGE_UNCHANGED );       // 深度图为16位无符号数，单通道图像
     
@@ -265,10 +266,11 @@ int main( int argc, char** argv )	{
     cvtColor(currImage_c, currImage, COLOR_BGR2GRAY);
   	// vector<uchar> status;
   	
-    t2=clock();//程序段结束后取得系统运行时间(ms)
-    cout << "read picture time:" << float(t2-t1)/CLOCKS_PER_SEC << "s" << endl;//0.046013s
+    t2=std::chrono::steady_clock::now();//程序段结束后取得系统运行时间(ms)
+    time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    cout << "read picture time:" << (time_used.count() * 1000) << " ms." << endl;//0.046013s
 
-  	t1=clock();//程序段开始前取得系统运行时间(ms)
+  	t1=std::chrono::steady_clock::now();//程序段开始前取得系统运行时间(ms)
     vector<Point3f> points_3d;
     vector<Point2f> points_2d;        //vectors to store the coordinates of the feature points
     
@@ -284,10 +286,11 @@ int main( int argc, char** argv )	{
         sprintf(outname, "../output/%s_%d_%d.png", time_stamp, numFrame, points_3d.size());
         imwrite(outname, currImage);
     }
-    t2=clock();//程序段结束后取得系统运行时间(ms)
-    cout << "featureTracking time:" << float(t2-t1)/CLOCKS_PER_SEC << "s" << endl;//0.513374s
+    t2=std::chrono::steady_clock::now();//程序段结束后取得系统运行时间(ms)
+    time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    cout << "featureTracking time:" << (time_used.count() * 1000) << " ms." << endl;//0.513374s
 
-  	t1=clock();//程序段开始前取得系统运行时间(ms)
+  	t1=std::chrono::steady_clock::now();//程序段开始前取得系统运行时间(ms)
     Mat r, t, R;
     if ( PNPRANSAC )
         solvePnPRansac ( points_3d, points_2d, K, Mat(), r, t, false, 100, 8.0, 0.99, noArray(), cv::SOLVEPNP_EPNP ); 
@@ -306,10 +309,11 @@ int main( int argc, char** argv )	{
     t_f = t_f + (R_f*t);
     R_f = R_f*R; 
 
-    t2=clock();//程序段结束后取得系统运行时间(ms)
-    cout << "compute time:" << float(t2-t1)/CLOCKS_PER_SEC << "s" << endl;//0.000971s
+    t2=std::chrono::steady_clock::now();//程序段结束后取得系统运行时间(ms)
+    time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    cout << "compute time:" << (time_used.count() * 1000) << " ms." << endl;//0.000971s
 
-    t1=clock();//程序段开始前取得系统运行时间(ms)
+    t1=std::chrono::steady_clock::now();//程序段开始前取得系统运行时间(ms)
     int x = int(t_f.at<double>(0)*50) + 300;
     //cout << "int(t_f.at<double>(0)) is :" << int(t_f.at<double>(0)) << endl;
     int y = int(t_f.at<double>(2)*50) + 300;
@@ -329,14 +333,15 @@ int main( int argc, char** argv )	{
     
     cv::waitKey(1); 
     
-    t2=clock();//程序段结束后取得系统运行时间(ms)
-    cout << "output time:" << float(t2-t1)/CLOCKS_PER_SEC << "s" << endl;//0.008223s
+    t2=std::chrono::steady_clock::now();//程序段结束后取得系统运行时间(ms)
+    time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+    cout << "output time:" << (time_used.count() * 1000) << " ms." << endl;//0.008223s
 
   }
 
-  clock_t end = clock();
-  double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-  cout << "Total time taken: " << elapsed_secs << "s" << endl;
+  std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+  time_used = std::chrono::duration_cast<std::chrono::duration<double>>(begin - end);
+  cout << "Total time taken: " << time_used.count() << " s." << endl;
 
   //cout << R_f << endl;
   //cout << t_f << endl;
