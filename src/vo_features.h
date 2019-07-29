@@ -193,7 +193,7 @@ void run_DPU(DPUTask *task, Mat img, int8_t* &result_semi_int, int8_t* &result_d
     delete[] input_img;
 }
 
-void run_Softmax(int8_t* result_semi_int, int num_semi, point coarse_semi[][Width/Cell])
+void run_Softmax(int8_t* result_semi_int, int num_semi, point* coarse_semi[])
 {
     float* result_semi = new float[num_semi];
     float semi[Height][Width];
@@ -244,7 +244,7 @@ void run_Softmax(int8_t* result_semi_int, int num_semi, point coarse_semi[][Widt
     }
 }
 
-void run_Softmax_fpga(SuperPointTask SPtask, int8_t* result_semi_int, int num_semi, point coarse_semi[][Width/Cell])
+void run_Softmax_fpga(SuperPointTask SPtask, int8_t* result_semi_int, int num_semi, point* coarse_semi[])
 {
     memcpy(SPtask.mapped_ddr1_base,result_semi_int,num_semi);
     
@@ -286,7 +286,7 @@ void run_Softmax_fpga(SuperPointTask SPtask, int8_t* result_semi_int, int num_se
     }
 }
 
-void run_NMS(point coarse_semi[][Width/Cell], vector<point> &tmp_point, int threshold)
+void run_NMS(point* coarse_semi[], vector<point> &tmp_point, int threshold)
 {
     for(int i=0; i<Height/Cell; i++) {
         for(int j=0; j<Width/Cell; j++) {
@@ -463,7 +463,11 @@ void run_superpoint(SuperPointTask SPtask, Mat img, vector<Point2f>& points, Mat
     //------------------------softmax----------------------------------
     t1=std::chrono::steady_clock::now();//程序段开始前取得系统运行时间(ms)
  
-    point coarse_semi[Height/Cell][Width/Cell];
+    point* coarse_semi[Height/Cell];
+    for(int i=0; i<Height/Cell; i++)
+    {
+        coarse_semi[i]=new point[Width/Cell]();
+    }
     
     if(SOFTMAX_FPGA)
         run_Softmax_fpga(SPtask, result_semi_int, num_semi, coarse_semi);
@@ -515,6 +519,10 @@ void run_superpoint(SuperPointTask SPtask, Mat img, vector<Point2f>& points, Mat
     time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
     cout << "       normalize run time:" << (time_used.count() * 1000) << " ms." << endl;
     
+    for(int i=0; i<Height/Cell; i++)
+    {
+        delete[] coarse_semi[i];
+    }
 }
 
 
