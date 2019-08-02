@@ -126,7 +126,9 @@ void device_setup(SuperPointTask &SPtask)
     // Load DPU Kernel for DenseBox neural network
     SPtask.kernel = dpuLoadKernel("superpoint");
 
-	SPtask.task = dpuCreateTask(SPtask.kernel, 0);
+	cout<<"SPtask.task:"<<SPtask.task<<endl;
+    SPtask.task = dpuCreateTask(SPtask.kernel, 0);
+    cout<<"SPtask.task:"<<SPtask.task<<endl;
     
     off_t   reg_base = REG_BASE_ADDRESS;
     off_t   ddr1_base = DDR1_BASE_ADDRESS;
@@ -179,6 +181,7 @@ void run_DPU(DPUTask *task, Mat img, int8_t* &result_semi_int, int8_t* &result_d
     dpuSetInputTensorInHWCInt8(task, INPUT_NODE, (int8_t*)input_img, num);
     
     cout << "Run DPU ..." << endl;
+    cout<<"task:"<<task<<endl;
     dpuRunTask(task);
     cout << "Finish DPU ..." << endl;
     
@@ -302,7 +305,7 @@ void run_NMS(point* coarse_semi[], vector<point> &tmp_point, int threshold)
                                     coarse_semi[i][j].semi = 65535;
                             }
                         }
-                if(coarse_semi[i][j].semi!=0)
+                if(coarse_semi[i][j].semi != 65535)
                     tmp_point.push_back(coarse_semi[i][j]);
             }
         }

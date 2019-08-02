@@ -26,7 +26,7 @@ $DATA_DIR
 └─ match.txt
 ```
 
-其中`match.txt`由[associate.py](https://svncvpr.in.tum.de/cvpr-ros-pkg/trunk/rgbd_benchmark/rgbd_benchmark_tools/src/rgbd_benchmark_tools/associate.py)生成：
+其中`match.txt`由TUM官网上的[associate.py](https://svncvpr.in.tum.de/cvpr-ros-pkg/trunk/rgbd_benchmark/rgbd_benchmark_tools/src/rgbd_benchmark_tools/associate.py)生成：
 
 ```
 python associate.py ./rgb.txt ./depth.txt
@@ -52,7 +52,7 @@ char listFileDir[200] = "/home/linaro/dataset/tum/rgbd_dataset_freiburg2_desk/";
 mkdir build
 cd build
 cmake .. && make
-./main
+sudo ./main
 ```
 
 ## 修改参数
@@ -79,4 +79,16 @@ cmake .. && make
 * 特征点数量
 ```c++
 #define KEEP_K_POINTS 200
+```
+
+* descriptor匹配间距的阈值
+```c++
+#define NN_thresh 0.7
+```
+
+* descriptor匹配方法
+    * BF：暴力匹配
+    * FlannBased：Fast Library forApproximate Nearest Neighbors，一种近似方法
+```c++
+#define MATCHER "BF"
 ```
